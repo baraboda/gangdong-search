@@ -12,7 +12,6 @@ exports.handler = async (event, context) => {
   try {
     const { text, speaker = 'nara' } = JSON.parse(event.body);
     
-    // URL 인코딩
     const params = new URLSearchParams({
       speaker: speaker,
       text: text,
@@ -22,7 +21,6 @@ exports.handler = async (event, context) => {
       format: 'mp3'
     });
     
-    // 네이버 CLOVA Voice API 호출
     const response = await fetch('https://naveropenapi.apigw.ntruss.com/tts-premium/v1/tts', {
       method: 'POST',
       headers: {
@@ -51,4 +49,12 @@ exports.handler = async (event, context) => {
       isBase64Encoded: true
     };
     
-  } c
+  } catch (error) {
+    console.error('CLOVA TTS Error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: error.message })
+    };
+  }
+};
