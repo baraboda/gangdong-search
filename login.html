@@ -1,56 +1,949 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-    <title>로그인 - 강동구 현황 탐색</title>
-    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>강동구 현황 탐색</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/instantsearch.css@8/themes/satellite-min.css">
+    <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/instantsearch.js@4"></script>
     <style>
-        body { 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #7c3aed;
+            --danger-color: #dc2626;
+            --success-color: #16a34a;
+            --warning-color: #f59e0b;
+            --text-size: 16px;
+        }
+        
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            font-size: var(--text-size);
+            line-height: 1.6;
         }
-        .login-box {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-        p {
-            color: #666;
+        
+        /* 헤더 */
+        .header {
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 20px 0;
             margin-bottom: 30px;
         }
-        button {
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h1 {
+            font-size: 2.2em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+        
+        /* 폰트 크기 조절 */
+        .font-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .font-controls span {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .font-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .font-btn:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            transform: scale(1.1);
+        }
+        
+        /* 전체 읽기 컨트롤 */
+        .global-tts-controls {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .global-tts-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
-            font-size: 18px;
+            padding: 12px 24px;
+            border-radius: 12px;
             cursor: pointer;
-            transition: transform 0.3s;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        button:hover {
-            transform: scale(1.05);
+        
+        .global-tts-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .global-tts-btn.playing {
+            background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
+        }
+        
+        .global-tts-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .tts-status {
+            flex: 1;
+            color: #666;
+            font-size: 0.95em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .tts-progress {
+            background: #e0e0e0;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            flex: 1;
+            max-width: 300px;
+        }
+        
+        .tts-progress-bar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            width: 0;
+            transition: width 0.3s;
+        }
+        
+        /* 컨테이너 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* 통계 */
+        .stats-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .ais-Stats {
+            font-size: 1.1em;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        /* 검색박스 */
+        .search-wrapper {
+            background: white;
+            border-radius: 60px;
+            padding: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            margin-bottom: 30px;
+        }
+        
+        .ais-SearchBox-input {
+            border: none;
+            padding: 20px 30px;
+            font-size: 1.1em;
+            width: 100%;
+            outline: none;
+            background: transparent;
+        }
+        
+        .ais-SearchBox-submit,
+        .ais-SearchBox-reset {
+            background: transparent;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+        }
+        
+        /* 카드 */
+        .ais-Hits-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+            gap: 25px;
+            padding: 0;
+            list-style: none;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        
+        .card.reading {
+            border: 3px solid var(--warning-color);
+            box-shadow: 0 20px 60px rgba(245, 158, 11, 0.3);
+        }
+        
+        .card-header {
+            padding: 20px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .card-meta {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .card-number {
+            background: rgba(255,255,255,0.25);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        
+        .card-category {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        
+        .card-location {
+            background: rgba(255,255,255,0.15);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        
+        .card-title {
+            font-size: calc(var(--text-size) * 1.3);
+            font-weight: 700;
+            margin: 0;
+            line-height: 1.3;
+        }
+        
+        .card-body {
+            padding: 25px;
+        }
+        
+        .card-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .card-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .section-label {
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: calc(var(--text-size) * 0.95);
+        }
+        
+        .section-label::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+        }
+        
+        .section-content {
+            color: #444;
+            line-height: 1.7;
+            padding-left: 12px;
+            font-size: var(--text-size);
+        }
+        
+        /* 문제점 강조 */
+        .problem-section {
+            background: #fef2f2;
+            border-left: 4px solid var(--danger-color);
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .problem-section .section-label {
+            color: var(--danger-color);
+        }
+        
+        /* 제안 강조 */
+        .suggestion-section {
+            background: #f0f9ff;
+            border-left: 4px solid var(--primary-color);
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        /* 페이지네이션 */
+        .ais-Pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 40px 0;
+            padding: 20px;
+        }
+        
+        .ais-Pagination-item {
+            list-style: none;
+        }
+        
+        .ais-Pagination-link {
+            display: block;
+            padding: 12px 18px;
+            background: white;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #333;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .ais-Pagination-item--selected .ais-Pagination-link {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        /* 반응형 - 모바일 */
+        @media (max-width: 768px) {
+            .ais-Hits-list {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .card-body {
+                padding: 15px;
+            }
+            
+            .card-header {
+                padding: 15px 18px;
+            }
+            
+            .section-content {
+                padding-left: 0;
+            }
+            
+            .problem-section,
+            .suggestion-section {
+                padding: 10px;
+            }
+            
+            .card-section {
+                margin-bottom: 15px;
+                padding-bottom: 15px;
+            }
+            
+            .global-tts-controls {
+                flex-direction: column;
+            }
+            
+            .tts-status {
+                width: 100%;
+            }
+        }
+        
+        /* 로딩 애니메이션 */
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        
+        .loading {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
         }
     </style>
 </head>
 <body>
-    <div class="login-box">
-        <h1>🏛️ 강동구 현황 탐색</h1>
-        <p>접근 권한이 필요합니다</p>
-        <button onclick="netlifyIdentity.open()">로그인</button>
+    <div class="header">
+        <div class="header-content">
+            <h1>🏛️ 강동구 현황 탐색</h1>
+            <div class="font-controls">
+                <span>글자 크기</span>
+                <button class="font-btn" onclick="changeFontSize(-2)">A-</button>
+                <button class="font-btn" onclick="changeFontSize(2)">A+</button>
+            </div>
+        </div>
     </div>
+    
+    <div class="container">
+        <div class="stats-card">
+            <div id="stats"></div>
+        </div>
+        
+        <div class="search-wrapper">
+            <div id="searchbox"></div>
+        </div>
+        
+        <!-- 전체 읽기 컨트롤 -->
+        <div class="global-tts-controls">
+            <!-- TTS 엔진 선택 -->
+            <select id="tts-engine" onchange="changeTTSEngine()" style="padding: 10px; border-radius: 10px; border: 1px solid #ddd; background: white;">
+                <option value="browser">브라우저 기본 음성</option>
+                <option value="clova" selected>네이버 CLOVA (추천)</option>
+            </select>
+            
+            <!-- CLOVA 화자 선택 -->
+            <select id="clova-speaker" onchange="changeClovaSpeaker()" style="padding: 10px; border-radius: 10px; border: 1px solid #ddd; background: white;">
+                <option value="nara_call">나라 (여성, 상담원, 최신)</option>
+                <option value="ndain">다인 (여성, 밝고 경쾌, 최신)</option>
+                <option value="njiyun">지윤 (여성, 차분한 낭독, 최신)</option>
+                <option value="nsujin">수진 (여성, 전문 아나운서, 최신)</option>
+                <option value="njinho">진호 (남성, 뉴스 앵커, 최신)</option>
+            </select>
+            
+            <button class="global-tts-btn" onclick="readAllCards()">
+                <span>📚</span>
+                <span class="btn-text">전체 카드 읽기</span>
+            </button>
+            <button class="global-tts-btn" onclick="pauseResumeReading()">
+                <span>⏸️</span>
+                <span>일시정지/재개</span>
+            </button>
+            <button class="global-tts-btn" onclick="stopAllReading()">
+                <span>⏹️</span>
+                <span>정지</span>
+            </button>
+            <div class="tts-status">
+                <span id="reading-status">대기중</span>
+                <div class="tts-progress">
+                    <div class="tts-progress-bar" id="progress-bar"></div>
+                </div>
+                <span id="reading-count">0/0</span>
+            </div>
+        </div>
+        
+        <div id="hits"></div>
+        <div id="pagination"></div>
+    </div>
+
     <script>
-        netlifyIdentity.on("login", () => {
-            location.href = "/";
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            console.log('모바일 환경 감지됨');
+        }
+        // TTS 전역 변수
+        let useClova = true;
+        let clovaSpeaker = 'nara_call';
+        let currentAudio = null;
+        let isReadingAll = false;
+        let isPaused = false;
+        let currentCardIndex = 0;
+        let allCardsData = [];
+        
+        // TTS 엔진 변경
+        function changeTTSEngine() {
+            const engine = document.getElementById('tts-engine').value;
+            const speakerSelect = document.getElementById('clova-speaker');
+            
+            useClova = (engine === 'clova');
+            
+            if (useClova) {
+                speakerSelect.style.display = 'inline-block';
+                console.log('네이버 CLOVA 음성 사용');
+            } else {
+                speakerSelect.style.display = 'none';
+                console.log('브라우저 기본 음성 사용');
+            }
+        }
+        
+        // CLOVA 화자 변경
+        function changeClovaSpeaker() {
+            clovaSpeaker = document.getElementById('clova-speaker').value;
+            console.log('CLOVA 화자 변경:', clovaSpeaker);
+        }
+        
+        // CLOVA TTS 함수
+        async function readWithClova(text) {
+            console.log('CLOVA TTS 호출:', clovaSpeaker);
+            
+            // 강화된 텍스트 전처리
+            let processedText = text
+                // 하이픈을 쉼표로 변경 (마이너스로 읽지 않도록)
+                .replace(/\s-\s/g, ', ')  // " - " → ", "
+                .replace(/([가-힣])\s*-\s*/g, '$1, ')  // "김상균 -" → "김상균, "
+                .replace(/\s*-\s*([가-힣])/g, ', $1')  // "- 피아노" → ", 피아노"
+                
+                // 기존 전처리
+                .replace(/([가-힣a-zA-Z0-9])([🚨💡📢📊])/g, '$1. $2')
+                .replace(/([가-힣])([A-Z])/g, '$1. $2')
+                .replace(/문제점입니다/g, '문제점입니다.')
+                .replace(/제안내용입니다/g, '제안내용입니다.')
+                .replace(/답변사항입니다/g, '답변사항입니다.')
+                .replace(/객관적 분석입니다/g, '객관적 분석입니다.')
+                .replace(/([.!?])([^\s])/g, '$1 $2')
+                
+                // 추가: 콜론도 쉼표로
+                .replace(/:/g, ',')
+                
+                // 연속된 쉼표 정리
+                .replace(/,\s*,/g, ',')
+                .replace(/\.\s*,/g, '.');
+            
+            try {
+                const response = await fetch('/.netlify/functions/clova-tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: processedText,
+                        speaker: clovaSpeaker
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`CLOVA API 오류: ${response.status}`);
+                }
+                
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                // 기존 Audio 객체 재사용 또는 새로 생성
+                if (!currentAudio) {
+                    currentAudio = new Audio();
+                    // 모바일을 위한 설정
+                    currentAudio.preload = 'auto';
+                    currentAudio.autoplay = true;
+                }
+                
+                // 이전 URL 정리
+                if (currentAudio.src && currentAudio.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(currentAudio.src);
+                }
+                
+                currentAudio.src = audioUrl;
+                currentAudio.volume = 1.0;
+                
+                return new Promise((resolve, reject) => {
+                    const playHandler = () => {
+                        console.log('재생 시작됨');
+                    };
+                    
+                    const endHandler = () => {
+                        currentAudio.removeEventListener('ended', endHandler);
+                        currentAudio.removeEventListener('error', errorHandler);
+                        // Audio 객체는 유지하고 URL만 정리
+                        URL.revokeObjectURL(audioUrl);
+                        resolve();
+                    };
+                    
+                    const errorHandler = (err) => {
+                        console.error('오디오 재생 실패:', err);
+                        currentAudio.removeEventListener('ended', endHandler);
+                        currentAudio.removeEventListener('error', errorHandler);
+                        resolve();
+                    };
+                    
+                    currentAudio.addEventListener('ended', endHandler);
+                    currentAudio.addEventListener('error', errorHandler);
+                    
+                    // 재생 시도
+                    const playPromise = currentAudio.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise
+                            .then(playHandler)
+                            .catch((err) => {
+                                console.error('재생 실패, 재시도:', err);
+                                // 모바일에서 실패하면 한 번 더 시도
+                                setTimeout(() => {
+                                    currentAudio.play().catch(errorHandler);
+                                }, 100);
+                            });
+                    }
+                });
+                
+            } catch (error) {
+                console.error('CLOVA 오류, 브라우저 TTS로 전환:', error);
+                return readWithBrowserTTS(text);
+            }
+        }
+        
+        // 브라우저 TTS 함수
+        function readWithBrowserTTS(text) {
+            return new Promise((resolve) => {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ko-KR';
+                utterance.rate = 0.95;
+                utterance.onend = resolve;
+                utterance.onerror = resolve;
+                window.speechSynthesis.speak(utterance);
+            });
+        }
+        
+        // 폰트 크기 조절
+        let currentSize = 16;
+        function changeFontSize(delta) {
+            currentSize += delta;
+            if (currentSize < 12) currentSize = 12;
+            if (currentSize > 26) currentSize = 26;
+            document.documentElement.style.setProperty('--text-size', currentSize + 'px');
+            localStorage.setItem('fontSize', currentSize);
+        }
+
+        // 페이지 로드시 저장된 폰트 크기 적용
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedSize = localStorage.getItem('fontSize');
+            if (savedSize) {
+                currentSize = parseInt(savedSize);
+                document.documentElement.style.setProperty('--text-size', currentSize + 'px');
+            }
+        });
+        
+        // 전체 카드 읽기
+        function readAllCards() {
+            const cards = document.querySelectorAll('.card');
+            if (cards.length === 0) {
+                alert('읽을 카드가 없습니다.');
+                return;
+            }
+            
+            // 기존 읽기 중지
+            stopAllReading();
+            
+            // 카드 데이터 준비
+            allCardsData = [];
+            cards.forEach((card, index) => {
+                const cardNumber = card.querySelector('.card-number')?.textContent || `카드 ${index + 1}`;
+                const category = card.querySelector('.card-category')?.textContent || '';
+                const location = card.querySelector('.card-location')?.textContent.replace('📍 ', '') || '';
+                const title = card.querySelector('.card-title')?.textContent || '';
+                
+                // 각 섹션 텍스트
+                let problem = card.querySelector('.problem-section .section-content')?.textContent || '';
+                let suggestion = card.querySelector('.suggestion-section .section-content')?.textContent || '';
+                let response = card.querySelector('.card-section .section-content')?.textContent || '';
+                let analysis = Array.from(card.querySelectorAll('.card-section')).find(el => 
+                    el.querySelector('.section-label')?.textContent.includes('객관적 분석')
+                )?.querySelector('.section-content')?.textContent || '';
+                
+                // 마침표 확인 및 추가
+                if (problem && !problem.trim().endsWith('.')) problem += '.';
+                if (suggestion && !suggestion.trim().endsWith('.')) suggestion += '.';
+                if (response && !response.trim().endsWith('.')) response += '.';
+                if (analysis && !analysis.trim().endsWith('.')) analysis += '.';
+                
+                // 텍스트 구성
+                let fullText = `${cardNumber}번 카드. ${location} 지역. ${category} 분야. `;
+                fullText += `제목은 ${title}입니다. `;
+                
+                if (problem) fullText += `문제점입니다. ${problem} `;
+                if (suggestion) fullText += `제안내용입니다. ${suggestion} `;
+                if (response) fullText += `답변사항입니다. ${response} `;
+                if (analysis) fullText += `객관적 분석입니다. ${analysis} `;
+                
+                fullText += '다음 카드로 넘어갑니다. ';
+                
+                allCardsData.push({
+                    element: card,
+                    text: fullText,
+                    number: cardNumber
+                });
+            });
+            
+            // 읽기 시작
+            isReadingAll = true;
+            isPaused = false;
+            currentCardIndex = 0;
+            
+            // UI 업데이트
+            document.querySelector('.global-tts-btn .btn-text').textContent = '읽기 중...';
+            document.querySelector('.global-tts-btn').classList.add('playing');
+            updateReadingStatus();
+            
+            // 첫 번째 카드 읽기 시작
+            readNextCard();
+        }
+        
+        // 다음 카드 읽기
+        async function readNextCard() {
+            if (!isReadingAll || currentCardIndex >= allCardsData.length) {
+                finishReading();
+                return;
+            }
+            
+            const cardData = allCardsData[currentCardIndex];
+            
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('reading'));
+            cardData.element.classList.add('reading');
+            cardData.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            try {
+                if (useClova) {
+                    await readWithClova(cardData.text);
+                } else {
+                    await readWithBrowserTTS(cardData.text);
+                }
+                
+                if (!isPaused && isReadingAll) {
+                    currentCardIndex++;
+                    updateReadingStatus();
+                    setTimeout(() => readNextCard(), 500);
+                }
+            } catch (error) {
+                console.error('TTS 오류:', error);
+                if (isReadingAll) {
+                    currentCardIndex++;
+                    setTimeout(() => readNextCard(), 100);
+                }
+            }
+        }
+        
+        // 일시정지/재개
+        function pauseResumeReading() {
+            if (!isReadingAll) return;
+            
+            if (isPaused) {
+                isPaused = false;
+                
+                if (useClova && currentAudio) {
+                    currentAudio.play();
+                } else {
+                    window.speechSynthesis.resume();
+                }
+                
+                console.log('재개됨');
+            } else {
+                isPaused = true;
+                
+                if (useClova && currentAudio) {
+                    currentAudio.pause();
+                } else {
+                    window.speechSynthesis.pause();
+                }
+                
+                console.log('일시정지됨');
+            }
+        }
+        
+        // 전체 정지
+        function stopAllReading() {
+            isReadingAll = false;
+            isPaused = false;
+            currentCardIndex = 0;
+            
+            // CLOVA 오디오 정지
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                // 모바일을 위해 Audio 객체는 유지
+                // currentAudio = null; <- 이 줄 제거
+            }
+            
+            // 브라우저 TTS 정지
+            window.speechSynthesis.cancel();
+            
+            // UI 리셋
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('reading'));
+            const btnText = document.querySelector('.global-tts-btn .btn-text');
+            if (btnText) btnText.textContent = '전체 카드 읽기';
+            const playingBtn = document.querySelector('.global-tts-btn.playing');
+            if (playingBtn) playingBtn.classList.remove('playing');
+            updateReadingStatus();
+        }
+        
+        // 읽기 완료
+        function finishReading() {
+            isReadingAll = false;
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('reading'));
+            document.querySelector('.global-tts-btn .btn-text').textContent = '전체 카드 읽기';
+            document.querySelector('.global-tts-btn').classList.remove('playing');
+            document.getElementById('reading-status').textContent = '읽기 완료';
+        }
+        
+        // 상태 업데이트
+        function updateReadingStatus() {
+            const status = document.getElementById('reading-status');
+            const count = document.getElementById('reading-count');
+            const progressBar = document.getElementById('progress-bar');
+            
+            if (isReadingAll) {
+                status.textContent = `${allCardsData[currentCardIndex]?.number || ''} 읽는 중...`;
+                count.textContent = `${currentCardIndex + 1}/${allCardsData.length}`;
+                progressBar.style.width = `${((currentCardIndex + 1) / allCardsData.length) * 100}%`;
+            } else {
+                status.textContent = '대기중';
+                count.textContent = '0/0';
+                progressBar.style.width = '0%';
+            }
+        }
+        
+        // 페이지 떠날 때 음성 정지
+        window.addEventListener('beforeunload', () => {
+            if (currentAudio) {
+                currentAudio.pause();
+            }
+            window.speechSynthesis.cancel();
+        });
+        
+        // Algolia 설정
+        const searchClient = algoliasearch(
+            'X02D3JQ3LS',
+            '66df50144b6ff51f5e49324905c350ae'
+        );
+
+        const search = instantsearch({
+            indexName: 'gangdong',  // 인덱스 이름
+            searchClient,
+        });
+
+        search.addWidgets([
+            instantsearch.widgets.searchBox({
+                container: '#searchbox',
+                placeholder: '검색어를 입력하세요 (예: 위원명, 교통, 복지, 천호동)',
+            }),
+            
+            instantsearch.widgets.stats({
+                container: '#stats',
+                templates: {
+                    text: `
+                        {{#hasNoResults}}검색 결과가 없습니다{{/hasNoResults}}
+                        {{#hasOneResult}}1개 항목 발견{{/hasOneResult}}
+                        {{#hasManyResults}}총 <strong>{{#helpers.formatNumber}}{{nbHits}}{{/helpers.formatNumber}}</strong>개 현황카드 (검색시간: {{processingTimeMS}}ms){{/hasManyResults}}
+                    `,
+                },
+            }),
+            
+            instantsearch.widgets.hits({
+                container: '#hits',
+                templates: {
+                    item(hit) {
+                        return `
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-meta">
+                                        <span class="card-number">${hit.카드번호 || '-'}</span>
+                                        <span class="card-category">${hit.분류 || '-'}</span>
+                                        <span class="card-location">📍 ${hit.지역 || '-'}</span>
+                                    </div>
+                                    <h3 class="card-title">${hit.현안제목 || '제목 없음'}</h3>
+                                </div>
+                                
+                                <div class="card-body">
+                                    ${hit.문제점 ? `
+                                    <div class="problem-section">
+                                        <div class="section-label">🚨 문제점</div>
+                                        <div class="section-content">${hit.문제점}</div>
+                                    </div>
+                                    ` : ''}
+                                    
+                                    ${hit.제안내용 ? `
+                                    <div class="suggestion-section">
+                                        <div class="section-label">💡 제안내용</div>
+                                        <div class="section-content">${hit.제안내용}</div>
+                                    </div>
+                                    ` : ''}
+                                    
+                                    ${hit.답변사항 ? `
+                                    <div class="card-section">
+                                        <div class="section-label">📢 답변사항</div>
+                                        <div class="section-content">${hit.답변사항}</div>
+                                    </div>
+                                    ` : ''}
+                                    
+                                    ${hit['객관적 분석'] || hit.객관적분석 ? `
+                                    <div class="card-section">
+                                        <div class="section-label">📊 객관적 분석</div>
+                                        <div class="section-content">${hit['객관적 분석'] || hit.객관적분석}</div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    },
+                    empty: `
+                        <div style="text-align: center; padding: 60px; color: white;">
+                            <h2>검색 결과가 없습니다</h2>
+                            <p style="margin-top: 10px;">다른 검색어를 시도해보세요</p>
+                        </div>
+                    `,
+                },
+            }),
+            
+            instantsearch.widgets.pagination({
+                container: '#pagination',
+            }),
+        ]);
+
+        search.start();
+        
+        // 검색 결과 변경 감지
+        search.on('render', () => {
+            if (isReadingAll) {
+                stopAllReading();
+            }
         });
     </script>
 </body>
